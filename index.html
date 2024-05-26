@@ -90,6 +90,18 @@
         if (password === ilkSifre) {
             update(ref(db, '/'), { SIFRE: "1234" }) // Şifre doğruysa Firebase arayüzüne "1234" yaz
         
+            setTimeout(() => {
+                update(ref(db, '/'), { SIFRE: "" }); // Şifreyi belli bir süre sonra "" yap
+            }, 10000); // 60000 ms = 10 saniye
+
+            update(ref(db, '/'), { SISTEM: "SISTEM BASLATILDI" });
+            update(ref(db, '/'), { DURUM: "" });
+            update(ref(db, '/'), { HAREKET: "" });
+            update(ref(db, '/'), { KAPI: "" });
+            update(ref(db, '/'), { SES: "" });
+            update(ref(db, '/'), { SICAKLIK: 0 });
+            update(ref(db, '/'), { NEM: 0 });
+
         document.getElementById("ŞifreGüncelleBtn").addEventListener("click", function(event) {
         event.preventDefault();
         document.getElementById("güncelleme").style.display = "block";
