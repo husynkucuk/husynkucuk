@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hüseyin Küçük Güvenlik Sistemi</title>
+    <style>
+        body {text-align: center;}
+        #findDetails {margin: 0 auto; width: 50%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: white; color: #153dec }
+        input {width: 120px;}
+    </style>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div id="container">
+        <form id="loginForm">
+        <h1>Kontrol Merkezine Hoşgeldiniz</h1>
+        <h4>Giriş Yapmak İçin Lütfen Şifrenizi Giriniz</h4>
+        <input id="Şifre" type="password" placeholder="Şifre">
+        <button id="Password">Giriş</button>
+        </form>
+    <div id="findDetails" style="display:none;">
+        <h1 style="color: #4CAF50;">HOŞGELDİNİZ</h1>
+        <h3 id="findKAPI" type="text"></h3>
+        <h3 id="findSES" type="text"></h3>
+        <h3 id="findHAREKET" type="text"></h3>  
+        <h3 id="findSICAKLIK" type="number"></h3> 
+        <h3 id="findNEM" type="text"></h3>
+        <h3 id="findDURUM" type="text"></h3>
+        <br><br>
+        <button id="baslaBtn">BASLA</button>
+        <button id="durBtn">DUR</button>
+        <button id="ŞifreGüncelleBtn">Şifre Güncelle</button>
+        <br><br>
+
+        <canvas id="temperatureChart"></canvas>
+        <canvas id="humidityChart"></canvas>
+    </div>
+    <div id="güncelleme" style="display:none;">
+        <form id="güncelle">
+            <input id="eskiŞifre" type="password" placeholder="Eski Şifre">
+            <br><br>
+            <input id="yeniŞifre" type="password" placeholder="Yeni Şifre">
+            <br><br>
+            <button id="güncelleBtn">Şifre Güncelle</button>
+            <button id="iptalBtn">İptal</button>
+        </form>
+    </div>
+    
+    </div>
+    
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
+        // TODO: Add SDKs for Firebase products that you want to use
+        // https://firebase.google.com/docs/web/setup#available-libraries
+      
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyA7FnM5sObQnxh_pTzmB6SD0RtdzzYjUnQ",
+            authDomain: "test-2fefb.firebaseapp.com",
+            databaseURL: "https://test-2fefb-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "test-2fefb",
+            storageBucket: "test-2fefb.appspot.com",
+            messagingSenderId: "349708900694",
+            appId: "1:349708900694:web:27ddd226fff814883ddef7"
+        };      
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+    
+        import {getDatabase, ref, get, onValue, update}
+        from "https://www.gstatic.com/firebasejs/10.10.0/firebase-database.js"
+
+        const db = getDatabase();
+        
+        let ilkSifre;
+
+        get(ref(db, '/İLKSİFRE')).then((snapshot) => {
+        if (snapshot.exists()) {
+            ilkSifre = snapshot.val();
+        }
+        })
+
+        document.getElementById("loginForm").addEventListener("submit", function(event) {
+        event.preventDefault();
+        var password = document.getElementById("Şifre").value;
+        if (password === ilkSifre) {
+            update(ref(db, '/'), { SIFRE: "1234" }) // Şifre doğruysa Firebase arayüzüne "1234" yaz
+        
+            setTimeout(() => {
+                update(ref(db, '/'), { SIFRE: "" }); // Şifreyi belli bir süre sonra "" yap
+            }, 10000); // 60000 ms = 10 saniye
+
+            update(ref(db, '/'), { SISTEM: "SISTEM BASLATILDI" });
+            update(ref(db, '/'), { DURUM: "" });
+            update(ref(db, '/'), { HAREKET: "" });
+            update(ref(db, '/'), { KAPI: "" });
+            update(ref(db, '/'), { SES: "" });
+            update(ref(db, '/'), { SICAKLIK: 0 });
+            update(ref(db, '/'), { NEM: 0 });
+
+        document.getElementById("ŞifreGüncelleBtn").addEventListener("click", function(event) {
+        event.preventDefault();
+        document.getElementById("güncelleme").style.display = "block";
+        document.getElementById("findDetails").style.display = "none";
+        });
+
+        document.getElementById("güncelle").addEventListener("submit", function(event) {
+        event.preventDefault();
+        var eskiSifre = document.getElementById("eskiŞifre").value;
+        var yeniSifre = document.getElementById("yeniŞifre").value;
+
+        
+        if (eskiSifre === ilkSifre) {
+            // Firebase'de şifre güncelleme işlemi
+            update(ref(db, '/'), { İLKSİFRE: yeniSifre })
+            .then(() => {
+                alert("Şifre güncelleme işlemi başarılı!");
+                document.getElementById("güncelleme").style.display = "none";
+                document.getElementById("findDetails").style.display = "block";
+            })
+            .catch((error) => {
+                alert("Şifre güncellenirken hata oluştu: " + error.message);
+            });
+        } 
+        else 
+        {
+            alert("Eski şifreniz yanlış!");
+        }
+        });
+
+        document.getElementById("iptalBtn").addEventListener("click", function(event) {
+        event.preventDefault();
+        document.getElementById("güncelleme").style.display = "none";
+        document.getElementById("findDetails").style.display = "block";
+        });
+
+
+        // Giriş butonu ve şifre giriş alanını gizle
+        document.getElementById("loginForm").style.display = "none";
+        document.getElementById("findDetails").style.display = "block";
+        document.getElementById("güncelle").style.display = "block";
+
+        var baslaBtn = document.querySelector("#baslaBtn");
+        var PasswordBtn = document.querySelector("#Password");
+        var durBtn = document.querySelector("#durBtn");
+        var ŞifreInput = document.querySelector("#Şifre");
+        var yeniDurumInput = document.querySelector("#yeniDurum");
+        var ŞifreGüncelleBtn = document.querySelector("#ŞifreGüncelleBtn");
+
+        // Chart.js initialization
+        var ctx = document.getElementById('temperatureChart').getContext('2d');
+        var temperatureChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [], // Saat etiketleri dinamik olarak güncellenecek
+                datasets: [{
+                    label: 'Sıcaklık',
+                    data: [],
+                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    yAxes: [{
+                        ticks: {
+                            beginAtZero: true
+                        }
+                    }]
+                }
+            }
+        });
+
+        var humidityCtx = document.getElementById('humidityChart').getContext('2d');
+        var humidityChart = new Chart(humidityCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Nem',
+                    data: [],
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    yAxes: [{
+                        ticks: {
+                            beginAtZero: true
+                        }
+                    }]
+                }
+            }
+        });
+
+        // Bayraklar
+        let sistemBaslatildiFlag = false;
+        let sistemDurdurulduFlag = false;
+
+            onValue(ref(db), (snapshot) => {
+            if (snapshot.exists()) {
+                findKAPI.innerHTML = "<span style='color: #4CAF50;'>KAPI: </span>";
+                if (snapshot.val().KAPI === "KAPI KAPALI")
+                {
+                    findKAPI.innerHTML += "Kapınız Kapalı";
+                } 
+                else if(snapshot.val().KAPI === "KAPI ACILDI")
+                {
+                    findKAPI.innerHTML += "Kapınız Açıldı"; 
+                }
+
+                findSES.innerHTML = "<span style='color: #4CAF50;'>SES: </span>";
+                if (snapshot.val().SES === "SES YOK")
+                {
+                    findSES.innerHTML += "Ses Yok";
+                } 
+                else if(snapshot.val().SES === "SES VAR")
+                {
+                    findSES.innerHTML += "Ses Var"; 
+                }
+
+                findHAREKET.innerHTML = "<span style='color: #4CAF50;'>HAREKET: </span>";
+                if (snapshot.val().HAREKET === "HAREKET YOK")
+                {
+                    findHAREKET.innerHTML += "Hareket Yok";
+                } 
+                else if(snapshot.val().HAREKET === "HAREKET VAR")
+                {
+                    findHAREKET.innerHTML += "Hareket Var"; 
+                }
+
+                findSICAKLIK.innerHTML = "<span style='color: #4CAF50;'>SICAKLIK: </span>" + snapshot.val().SICAKLIK + "°C";
+                findNEM.innerHTML = "<span style='color: #4CAF50;'>NEM: </span>" + snapshot.val().NEM;
+                
+                findDURUM.innerHTML = "<span style='color: #4CAF50;'>DURUM: </span>";  
+                if (snapshot.val().DURUM === "DUR")
+                {
+                    findDURUM.innerHTML += "Sistem Durduruldu";
+                } 
+                else if(snapshot.val().DURUM === "BASLA")
+                {
+                    findDURUM.innerHTML += "Sistem Başlatıldı"; 
+                }                   
+
+                // Add temperature to the chart
+                if (snapshot.val().SICAKLIK !== 0) {
+                    const currentTime = new Date();
+                    const currentHour = currentTime.getHours();
+                    const currentMinute = currentTime.getMinutes();
+                    const currentSecond = currentTime.getSeconds();
+                    const currentTimestamp = `${currentHour}:${currentMinute}:${currentSecond}`;
+                    temperatureChart.data.labels.push(currentTimestamp);
+                    temperatureChart.data.datasets[0].data.push(snapshot.val().SICAKLIK);
+                    temperatureChart.update(); // Update the chart
+                }
+
+                // Update humidity chart
+                if (snapshot.val().NEM !== 0) {
+                    const currentTime = new Date();
+                    const currentHour = currentTime.getHours();
+                    const currentMinute = currentTime.getMinutes();
+                    const currentSecond = currentTime.getSeconds();
+                    const currentTimestamp = `${currentHour}:${currentMinute}:${currentSecond}`;
+                    humidityChart.data.labels.push(currentTimestamp);
+                    humidityChart.data.datasets[0].data.push(snapshot.val().NEM);
+                    humidityChart.update(); // Update the chart
+                }
+
+                // Check if the value of the "SISTEM" variable is "SISTEM BASLATILDI"
+                if (snapshot.val().SISTEM === "SISTEM BASLATILDI" && !sistemBaslatildiFlag) {
+                    alert("SISTEM BASLATILDI");
+                    sistemBaslatildiFlag = true; // Bayrağı işaretleyin
+                    sistemDurdurulduFlag = false; // Diğer bayrağı sıfırlayın
+                }
+
+                // Check if the value of the "SISTEM" variable is "SISTEM DURDURULDU"
+                if (snapshot.val().SISTEM === "SISTEM DURDURULDU" && !sistemDurdurulduFlag) {
+                    alert("SISTEM DURDURULDU");
+                    sistemDurdurulduFlag = true; // Bayrağı işaretleyin
+                    sistemBaslatildiFlag = false; // Diğer bayrağı sıfırlayın
+                }
+            }
+        });
+
+        baslaBtn.addEventListener('click', () => {
+            update(ref(db, '/'), { DURUM: "BASLA" })
+                .then(() => {
+                    alert("Durum güncelleme başarılı!");
+                })
+                .catch((error) => {
+                    alert("Durum güncellenirken hata oluştu: " + error.message);
+                });
+        });
+
+        durBtn.addEventListener('click', () => {
+            update(ref(db, '/'), { DURUM: "DUR" })
+                .then(() => {
+                    alert("Durum güncelleme başarılı!");
+                })
+                .catch((error) => {
+                    alert("Durum güncellenirken hata oluştu: " + error.message);
+                });
+        });
+
+        PasswordBtn.addEventListener('click', Password);   
+    }
+    else {
+        alert("Şifreniz Yanlış!");
+    }
+  });
+    </script>
+</body>
+</html>
