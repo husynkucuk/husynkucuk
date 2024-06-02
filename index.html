@@ -216,7 +216,7 @@
                     findKAPI.innerHTML += "<span style='color: red;'>Kapınız Açıldı</span>"; 
                     setTimeout(() => {
                         update(ref(db, '/'), { KAPI: "KAPI KAPALI" });
-                    }, 8000); // 8 saniye sonra veritabanına "KAPI KAPALI" yaz.
+                    }, 12000); // 12 saniye sonra veritabanına "KAPI KAPALI" yaz.
                 }
 
                 findSES.innerHTML = "<span style='color: black;'>SES: </span>";
@@ -242,7 +242,7 @@
                     findHAREKET.innerHTML += "<span style='color: red;'>Hareket Var</span>"; 
                     setTimeout(() => {
                         update(ref(db, '/'), { HAREKET: "HAREKET YOK" });
-                    }, 8000); // 8 saniye sonra veritabanına "HAREKET YOK" yaz.
+                    }, 12000); // 12 saniye sonra veritabanına "HAREKET YOK" yaz.
                 }
 
                 findSICAKLIK.innerHTML = "<span style='color: black;'>SICAKLIK: </span>" + snapshot.val().SICAKLIK + "°C";
