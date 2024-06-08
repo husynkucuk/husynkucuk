@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hüseyin Küçük Güvenlik Sistemi</title>
+    <style>
+        body {text-align: center;}
+        #findDetails {margin: 0 auto; width: 50%; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: white; color: #153dec }
+        input {width: 120px;}
+    </style>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div id="container">
+        <form id="loginForm">
+        <h1>Kontrol Merkezine Hoşgeldiniz</h1>
+        <h4>Sistemi Başlatmak İçin Lütfen Şifrenizi Giriniz</h4>
+        <input id="Şifre" type="password" placeholder="Şifre">
+        <button id="Password">Giriş</button>
+        </form>
+    <div id="findDetails" style="display:none;">
+        <h1 style="color: #153dec;">HOŞGELDİNİZ</h1>
+        <h3 id="findKAPI" type="text"></h3>
+        <h3 id="findSES" type="text"></h3>
+        <h3 id="findHAREKET" type="text"></h3>  
+        <h3 id="findSICAKLIK" type="number"></h3> 
+        <h3 id="findNEM" type="text"></h3>
+        <h3 id="findDURUM" type="text"></h3>
+        <br><br>
+        <button id="baslaBtn">BASLA</button>
+        <button id="durBtn">DUR</button>
+        <button id="ŞifreGüncelleBtn">Şifre Güncelle</button>
+        <br><br>
+
+        <canvas id="temperatureChart"></canvas>
+        <canvas id="humidityChart"></canvas>
+    </div>  
+    <div id="güncelleme" style="display:none;">
+        <form id="güncelle">
+            <input id="eskiŞifre" type="password" placeholder="Eski Şifre">
+            <br><br>
+            <input id="yeniŞifre" type="password" placeholder="Yeni Şifre">
+            <br><br>
+            <button id="güncelleBtn">Şifre Güncelle</button>
+            <button id="iptalBtn">İptal</button>
+        </form> 
+    </div>
+    </div>
+    
+    <script type="module">
+        // Firebase SDK'larını girme işlemi
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js";
+
+        const firebaseConfig = 
+        {
+            apiKey: "AIzaSyA7FnM5sObQnxh_pTzmB6SD0RtdzzYjUnQ",
+            authDomain: "test-2fefb.firebaseapp.com",
+            databaseURL: "https://test-2fefb-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "test-2fefb",
+            storageBucket: "test-2fefb.appspot.com",
+            messagingSenderId: "349708900694",
+            appId: "1:349708900694:web:27ddd226fff814883ddef7"
+        };      
+        
+        const app = initializeApp(firebaseConfig);                      // Firebase'i Başlat 
+    
+        import {getDatabase, ref, get, onValue, update} from "https://www.gstatic.com/firebasejs/10.10.0/firebase-database.js"
+        
+        const db = getDatabase();                                       // Gelen verileri db değişkenine kopyala
+        
+        let ilkSifre;
+
+        get(ref(db, '/İLKSİFRE')).then((snapshot) =>                    // Firebase veri tabanındaki İLKSİFRE değişkeninin değerini al 
+        {
+            if (snapshot.exists())                                      // Eğer böyle bir değişken varsa döngüye gir
+            {
+                ilkSifre = snapshot.val();                              // Firebase veri tabanındaki İLKSİFRE'ye karşılık gelen değeri "ilkSifre" değişkenine kopyala
+            }
+        })
+        
+        // Şifre girildiğinde yapılacak işlem (submit)
+        document.getElementById("loginForm").addEventListener("submit", function(event) 
+        {
+            event.preventDefault();                                     // Normal akışı engelle 
+            var password = document.getElementById("Şifre").value;      // id: Şifre olan bölümündeki girilen değeri "password" değişkenine kopyala
+            if (password === ilkSifre)                                  // Girilen şifre doğruysa döngüye gir
+            {
+                update(ref(db, '/'), { SIFRE: "1234" })                 // Şifre doğruysa Firebase arayüzüne "1234" yaz
+                setTimeout(() =>                                        // Belirli bir süre sonra...
+                {
+                    update(ref(db, '/'), { SIFRE: "" });                // Firebase veri tabanındaki SIFRE değişkenini "" olarak güncelle
+                }, 10000);                                              // 10000 ms = 10 saniye
+
+                update(ref(db, '/'), { SISTEM: "SISTEM BASLATILDI" });  // Firebase veri tabanındaki SISTEM değişkenini "SISTEM BASLATILDI" olarak güncelle
+                
+                // Firebase veri tabanındaki değişkenleri sıfırla
+                update(ref(db, '/'), { DURUM: "" });
+                update(ref(db, '/'), { HAREKET: "" });
+                update(ref(db, '/'), { KAPI: "" });
+                update(ref(db, '/'), { SES: "" });
+                update(ref(db, '/'), { SICAKLIK: 0 });
+                update(ref(db, '/'), { NEM: 0 });
+
+                // Şifre Güncelleme butonuna tıklanırsa yapılacak işlem
+                document.getElementById("ŞifreGüncelleBtn").addEventListener("click", function(event)   
+                {
+                    event.preventDefault();                                                     // Normal akışı engelle 
+                    document.getElementById("güncelleme").style.display = "block";              // güncelleme bölümünü göster
+                    document.getElementById("findDetails").style.display = "none";              // FindDetails bölümünü gizle
+                });
+
+                document.getElementById("güncelle").addEventListener("submit", function(event)  // "eskiŞifre" ve "yeniŞifre" girildiğinde yapılacak işlem (submit)
+                {
+                    event.preventDefault();                                                     // Normal akışı engelle 
+                    var eskiSifre = document.getElementById("eskiŞifre").value;                 // "eskiŞifre" bölümünde yazılanı eskiSifre değişkenine kopyala
+                    var yeniSifre = document.getElementById("yeniŞifre").value;                 // "yeniŞifre" bölümünde yazılanı yeniŞifre değişkenine kopyala
+
+                if (eskiSifre === ilkSifre)                                                     // Eğer "eskiSifre" ile "ilkSifre" aynıysa döngüye gir
+                {
+                    update(ref(db, '/'), { İLKSİFRE: yeniSifre })                               // Veri tabanındaki İLKSİFRE değişkenini "yeniSifre" değeri olarak güncelle
+                    .then(() => 
+                    {
+                        alert("Şifre güncelleme işlemi başarılı!");                             // Siteye "Şifre güncelleme işlemi başarılı!" uyarısı yaz
+                        document.getElementById("güncelleme").style.display = "none";           // güncelleme bölümünü gizle
+                        document.getElementById("findDetails").style.display = "block";         // FindDetails bölümünü göster
+                    })
+                    .catch((error) =>
+                    {
+                        alert("Şifre güncellenirken hata oluştu: " + error.message);
+                    });
+                } 
+                // Girilen eski şifre ilk şifre ile eşleşmiyorsa yapılacak işlem
+                else                                                    
+                {
+                    alert("Eski şifreniz yanlış!");                                             // Siteye "Eski şifreniz yanlış!" uyarısı yaz
+                }
+                });
+
+                // İptal butonuna tıklanırsa yapılacak işlem
+                document.getElementById("iptalBtn").addEventListener("click", function(event) 
+                {
+                    event.preventDefault();                                                     // Normal akışı engelle 
+                    document.getElementById("güncelleme").style.display = "none";               // güncelleme bölümünü gizle
+                    document.getElementById("findDetails").style.display = "block";             // FindDetails bölümünü göster
+                });
+
+                // Giriş butonu ve şifre giriş alanını gizle
+                document.getElementById("loginForm").style.display = "none";                    // loginForm bölümünü gizle
+                document.getElementById("findDetails").style.display = "block";                 // FindDetails bölümünü göster
+                document.getElementById("güncelle").style.display = "block";                    // "güncelle" bölümünü göster
+
+                var baslaBtn = document.querySelector("#baslaBtn");
+                var durBtn = document.querySelector("#durBtn");
+                var PasswordBtn = document.querySelector("#Password");
+                var ŞifreGüncelleBtn = document.querySelector("#ŞifreGüncelleBtn");
+
+                // Chart.js Başlatma
+                var ctx = document.getElementById('temperatureChart').getContext('2d');
+                var temperatureChart = new Chart(ctx, 
+                {
+                    type: 'line', data:  
+                    { 
+                        labels: [], datasets: 
+                        [{
+                            label: 'Sıcaklık', data: [],
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: 
+                    {
+                        scales: 
+                        {
+                            yAxes: 
+                            [{
+                                ticks: 
+                                {
+                                    beginAtZero: true
+                                }
+                            }]
+                        }
+                    }
+                });
+
+                var humidityCtx = document.getElementById('humidityChart').getContext('2d');
+                var humidityChart = new Chart(humidityCtx, 
+                {
+                    type: 'line', data:
+                    {
+                        labels: [], datasets:
+                        [{
+                            label: 'Nem', data: [],
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: 
+                    {
+                        scales: 
+                        {
+                            yAxes: 
+                            [{
+                                ticks: 
+                                {
+                                    beginAtZero: true
+                                }
+                            }]
+                        }
+                    }
+                });
+
+                // Bayraklar
+                let sistemBaslatildiFlag = false;
+                let sistemDurdurulduFlag = false;
+
+                onValue(ref(db), (snapshot) => 
+                {
+                    if (snapshot.exists()) 
+                    {
+                        findKAPI.innerHTML = "<span style='color: black;'>KAPI: </span>";
+                        if (snapshot.val().KAPI === "KAPI KAPALI")                  // Firebase veri tabanında KAPI verisi "KAPI KAPALI" değişkeni belirtiyorsa yapılacak işlem
+                        {
+                            findKAPI.innerHTML += "<span style='color: #4CAF50;'>Kapınız Kapalı</span>"; // Web sitesinde KAPI bölümüne "Kapınız Kapalı" yaz
+                        } 
+                        else if(snapshot.val().KAPI === "KAPI ACILDI")              // Firebase veri tabanında KAPI verisi "KAPI ACILDI" değişkeni belirtiyorsa yapılacak işlem
+                        {
+                            findKAPI.innerHTML += "<span style='color: red;'>Kapınız Açıldı</span>";    // Web sitesinde KAPI bölümüne "Kapınız Açıldı" yaz
+                            setTimeout(() =>                                        // Belirli bir süre sonra...
+                            {
+                                update(ref(db, '/'), { KAPI: "KAPI KAPALI" });      // Firebase veri tabanındaki KAPI değişkenini "KAPI KAPALI" olarak güncelle
+                            },8000);                                                // 8000 ms = 8 saniye
+                        }
+
+                        findSES.innerHTML = "<span style='color: black;'>SES: </span>";
+                        if (snapshot.val().SES === "SES YOK")                       // Firebase veri tabanında SES verisi "SES YOK" değişkeni belirtiyorsa yapılacak işlem
+                        {
+                            findSES.innerHTML += "<span style='color: #4CAF50;'>Ses Yok</span>"; // Web sitesinde KAPI bölümüne "Ses Yok" yaz
+                        } 
+                        else if(snapshot.val().SES === "SES VAR")                   // Firebase veri tabanında SES verisi "SES VAR" değişkeni belirtiyorsa yapılacak işlem
+                        {
+                            findSES.innerHTML += "<span style='color: red;'>Ses Var</span>";    // Web sitesinde KAPI bölümüne "Ses Var" yaz
+                            setTimeout(() =>                                        // Belirli bir süre sonra...
+                            {
+                                update(ref(db, '/'), { SES: "SES YOK" });           // Firebase veri tabanındaki SES değişkenini "SES YOK" olarak güncelle
+                            },8000);                                                // 8000 ms = 8 saniye
+                        }
+
+                        findHAREKET.innerHTML = "<span style='color: black;'>HAREKET: </span>";
+                        if (snapshot.val().HAREKET === "HAREKET YOK")               // Firebase veri tabanında HAREKET verisi "HAREKET YOK" değişkeni belirtiyorsa yapılacak işlem
+                        {
+                            findHAREKET.innerHTML += "<span style='color: #4CAF50;'>Hareket Yok</span>"; // Web sitesinde HAREKET bölümüne "Hareket Yok" yaz
+                        } 
+                        else if(snapshot.val().HAREKET === "HAREKET VAR")           // Firebase veri tabanında HAREKET verisi "HAREKET VAR" değişkeni belirtiyorsa yapılacak işlem
+                        {
+                            findHAREKET.innerHTML += "<span style='color: red;'>Hareket Var</span>"; // Web sitesinde HAREKET bölümüne "Hareket Var" yaz
+                            setTimeout(() =>                                        // Belirli bir süre sonra...
+                            {
+                                update(ref(db, '/'), { HAREKET: "HAREKET YOK" });   // Firebase veri tabanındaki HAREKET değişkenini "HAREKET YOK" olarak güncelle
+                            },8000);                                                // 8000 ms = 8 saniye
+                        }
+
+                        findSICAKLIK.innerHTML = "<span style='color: black;'>SICAKLIK: </span>" + snapshot.val().SICAKLIK + "°C";
+                        findNEM.innerHTML = "<span style='color: black;'>NEM: </span>" + snapshot.val().NEM;
+                        
+                        findDURUM.innerHTML = "<span style='color: black;'>DURUM: </span>";  
+                        if (snapshot.val().DURUM === "DUR")
+                        {
+                            findDURUM.innerHTML += "<span style='color: red;'>Sistem Durduruldu</span>";
+                        } 
+                        else if(snapshot.val().DURUM === "BASLA")
+                        {
+                            findDURUM.innerHTML += "<span style='color: #4CAF50;'>Sistem Başlatıldı</span>"; 
+                            setTimeout(() =>                                // Belirli bir süre sonra...
+                            {
+                                update(ref(db, '/'), { DURUM: "" });        // Firebase veri tabanındaki DURUM değişkenini "" olarak güncelle
+                            },30000);                                       // 30000 ms = 30 saniye
+                        }                   
+
+                        if (snapshot.val().SICAKLIK !== 0) 
+                        {
+                            const currentTime = new Date();
+                            const currentHour = currentTime.getHours();
+                            const currentMinute = currentTime.getMinutes();
+                            const currentSecond = currentTime.getSeconds();
+                            const currentTimestamp = `${currentHour}:${currentMinute}:${currentSecond}`;
+                            temperatureChart.data.labels.push(currentTimestamp);
+                            temperatureChart.data.datasets[0].data.push(snapshot.val().SICAKLIK);
+                            temperatureChart.update(); 
+                        }
+
+                        if (snapshot.val().NEM !== 0) 
+                        {
+                            const currentTime = new Date();
+                            const currentHour = currentTime.getHours();
+                            const currentMinute = currentTime.getMinutes();
+                            const currentSecond = currentTime.getSeconds();
+                            const currentTimestamp = `${currentHour}:${currentMinute}:${currentSecond}`;
+                            humidityChart.data.labels.push(currentTimestamp);
+                            humidityChart.data.datasets[0].data.push(snapshot.val().NEM);
+                            humidityChart.update();
+                        }
+
+                        // SISTEM verisi "SISTEM BASLATILDI" ve bayrak "false" ise yapılacak işlem
+                        if (snapshot.val().SISTEM === "SISTEM BASLATILDI" && !sistemBaslatildiFlag) 
+                        {
+                            alert("SISTEM BASLATILDI");
+                            sistemBaslatildiFlag = true; 
+                            sistemDurdurulduFlag = false; 
+                        }
+
+                        // SISTEM verisi "SISTEM DURDURULDU" ve bayrak "false" ise yapılacak işlem
+                        if (snapshot.val().SISTEM === "SISTEM DURDURULDU" && !sistemDurdurulduFlag) 
+                        {
+                            alert("SISTEM DURDURULDU");
+                            sistemDurdurulduFlag = true; 
+                            sistemBaslatildiFlag = false; 
+                        }
+                    }
+                });
+
+                baslaBtn.addEventListener('click', () =>        // BASLA butonuna tıklanırsa yapılacak işlem
+                {
+                    update(ref(db, '/'), { DURUM: "BASLA" })    // Firebase veritabanındaki DURUM değişkenini "BASLA" olarak güncelle
+                    .then(() =>                                 // Arından
+                    {
+                        alert("Durum güncelleme başarılı!");    // Web sitesinde "Durum güncelleme başarılı!" uyarısı gönder
+                    })
+                    .catch((error) => 
+                    {
+                        alert("Durum güncellenirken hata oluştu: " + error.message);
+                    });
+                });
+
+                durBtn.addEventListener('click', () =>          // DUR butonuna tıklanırsa yapılacak işlem
+                {
+                    update(ref(db, '/'), { DURUM: "DUR" })      // Firebase veritabanındaki DURUM değişkenini "DUR" olarak güncelle
+                    .then(() =>                                 // Arından
+                    {
+                        alert("Durum güncelleme başarılı!");    // Web sitesinde "Durum güncelleme başarılı!" uyarısı gönder
+                    })
+                    .catch((error) => 
+                    {
+                        alert("Durum güncellenirken hata oluştu: " + error.message);
+                    });
+                });
+
+                PasswordBtn.addEventListener('click', Password);   
+            }
+            else // Girilen şifre "password" ve Firebase veri tabanındaki İLKSİFRE "ilkSifre" ile eşleşmezse yapılacak işlem
+            {
+                alert("Şifreniz Yanlış!");          // Web sitesinde "Şifreniz Yanlış!" uyarısı gönder
+            }
+        });
+    </script>
+</body>
+</html>
